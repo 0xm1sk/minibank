@@ -23,6 +23,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Call other seeders first to ensure roles exist
+        $this->call([
+            RoleSeeder::class,
+        ]);
+
         // Create test users with different roles
         $this->createTestUsers();
 
