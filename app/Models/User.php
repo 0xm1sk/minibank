@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Models\Role;
+use App\Models\Transaction;
 
 /**
  * User Model - Simplified Mini Bank
@@ -13,17 +14,17 @@ use App\Models\Role;
  * This represents users in our banking system.
  * We have 3 simple user types:
  * - Client (role_id = 1): Regular bank customers
- * - Employee (role_id = 2): Bank staff who help customers
- * - Admin (role_id = 3): Bank managers with full access
+ * - Employee (role_id = 4): Bank staff who help customers
+ * - Admin (role_id = 8): Bank managers with full access
  */
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
     // User role constants - makes code easier to read
-    const ROLE_CLIENT = 1;
-    const ROLE_EMPLOYEE = 2;
-    const ROLE_ADMIN = 3;
+    const ROLE_CLIENT = 1; // Regular Client
+    const ROLE_EMPLOYEE = 4; // Employee
+    const ROLE_ADMIN = 8; // Admin
 
     // User status constants
     const STATUS_ACTIVE = 'active';
@@ -95,11 +96,72 @@ class User extends Authenticatable
     }
 
     /**
-     * Get all transactions this user has made
+     * Get all transactions this user has made (through their accounts)
      */
     public function transactions()
     {
-        return $this->hasMany(Transaction::class);
+        return Transaction::whereHas('account', function ($query) {
+            $query->where('user_id', $this->id);
+        });
+    }
+
+    /**
+     * Get all transaction activity including pending transfer requests
+     */
+    public function allTransactionActivity()
+    {
+        // Get completed transactions from transactions table
+        $transactions = $this->transactions()->get()->map(function ($transaction) {
+            return [
+                'id' => $transaction->id,
+                'type' => $transaction->type,
+                'amount' => $transaction->amount,
+                'description' => $transaction->description,
+                'status' => $transaction->status,
+                'created_at' => $transaction->created_at,
+                'source' => 'transaction'
+            ];
+        });
+
+        // Get pending transfer requests
+        $transferRequests = TransferRequest::where('requested_by', $this->id)
+            ->pending()
+            ->with(['fromAccount', 'toAccount'])
+            ->get()
+            ->map(function ($request) {
+                $accountId = null;
+                $type = null;
+                
+                switch ($request->type) {
+                    case 'deposit':
+                        $accountId = $request->to_account_id;
+                        $type = 'deposit';
+                        break;
+                    case 'withdrawal':
+                        $accountId = $request->from_account_id;
+                        $type = 'withdrawal';
+                        break;
+                    case 'transfer':
+                        $accountId = $request->from_account_id;
+                        $type = 'transfer_out';
+                        break;
+                }
+
+                return [
+                    'id' => 'req_' . $request->id,
+                    'type' => $type,
+                    'amount' => $request->amount,
+                    'description' => $request->description,
+                    'status' => 'pending',
+                    'created_at' => $request->created_at,
+                    'source' => 'transfer_request'
+                ];
+            });
+
+        // Combine and sort by date
+        return $transactions->concat($transferRequests)
+            ->sortByDesc('created_at')
+            ->values();
     }
 
     /*
@@ -113,7 +175,7 @@ class User extends Authenticatable
      */
     public function isClient()
     {
-        return $this->role_id === self::ROLE_CLIENT;
+        return in_array($this->role_id, [Role::REGULAR_CLIENT, Role::VIP_CLIENT, Role::ENTERPRISE_CLIENT]);
     }
 
     /**
@@ -121,7 +183,7 @@ class User extends Authenticatable
      */
     public function isEmployee()
     {
-        return $this->role_id === self::ROLE_EMPLOYEE;
+        return in_array($this->role_id, [Role::EMPLOYEE, Role::MANAGER, Role::SUPERVISOR, Role::CEO]);
     }
 
     /**
@@ -129,7 +191,7 @@ class User extends Authenticatable
      */
     public function isAdmin()
     {
-        return $this->role_id === self::ROLE_ADMIN;
+        return $this->role_id === Role::ADMIN;
     }
 
     /**
@@ -146,6 +208,32 @@ class User extends Authenticatable
     public function canManageUsers()
     {
         return $this->isAdmin();
+    }
+
+    /**
+     * Check if user can approve transactions (managers, supervisors, CEO, admin)
+     */
+    public function canApproveTransactions()
+    {
+        return in_array($this->role_id, [Role::MANAGER, Role::SUPERVISOR, Role::CEO, Role::ADMIN]);
+    }
+
+    /**
+     * Check if user can approve specific amounts based on role
+     */
+    public function canApproveAmount($amount)
+    {
+        switch ($this->role_id) {
+            case Role::MANAGER:
+                return $amount <= 100000;
+            case Role::SUPERVISOR:
+                return $amount <= 500000;
+            case Role::CEO:
+            case Role::ADMIN:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /**
@@ -229,11 +317,19 @@ class User extends Authenticatable
     public function getRoleName()
     {
         switch ($this->role_id) {
-            case self::ROLE_CLIENT:
+            case Role::REGULAR_CLIENT:
+            case Role::VIP_CLIENT:
+            case Role::ENTERPRISE_CLIENT:
                 return 'Client';
-            case self::ROLE_EMPLOYEE:
+            case Role::EMPLOYEE:
                 return 'Employee';
-            case self::ROLE_ADMIN:
+            case Role::MANAGER:
+                return 'Manager';
+            case Role::SUPERVISOR:
+                return 'Supervisor';
+            case Role::CEO:
+                return 'CEO';
+            case Role::ADMIN:
                 return 'Admin';
             default:
                 return 'Unknown';

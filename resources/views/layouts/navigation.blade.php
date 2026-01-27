@@ -18,7 +18,10 @@
                     @else
                         <a href="/">
                     @endauth
-                        <x-application-logo class="block h-9 w-auto fill-current text-gray-200" />
+                        <div class="flex items-center space-x-3">
+                            <x-application-logo class="block h-9 w-auto fill-current text-gray-200" />
+                            <span class="text-xl font-bold text-gray-200">MiniBank</span>
+                        </div>
                     </a>
                 </div>
 
@@ -58,9 +61,6 @@
                     </x-slot>
 
                     <x-slot name="content">
-                        <x-dropdown-link :href="route('profile.edit')">
-                            {{ __('Profile') }}
-                        </x-dropdown-link>
 
                         <!-- Authentication -->
                         <form method="POST" action="{{ route('logout') }}">

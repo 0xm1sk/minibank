@@ -40,16 +40,18 @@
                     </div>
                     @if($account)
                         <div class="space-x-2">
-                            <a href="{{ route('client.transaction.create') }}"
+                            <a href="{{ route('client.deposit.form') }}"
                                class="px-4 py-2 bg-indigo-600 text-sm font-medium rounded-md hover:bg-indigo-700">
-                                + New Transaction
+                                + Deposit
                             </a>
-                            @if(Route::has('client.transfer.create'))
-                                <a href="{{ route('client.transfer.create') }}"
-                                   class="px-4 py-2 bg-green-600 text-sm font-medium rounded-md hover:bg-green-700">
-                                    Transfer Money
-                                </a>
-                            @endif
+                            <a href="{{ route('client.withdraw.form') }}"
+                               class="px-4 py-2 bg-red-600 text-sm font-medium rounded-md hover:bg-red-700">
+                                Withdraw
+                            </a>
+                            <a href="{{ route('client.transfer.form') }}"
+                               class="px-4 py-2 bg-green-600 text-sm font-medium rounded-md hover:bg-green-700">
+                                Transfer Money
+                            </a>
                         </div>
                     @endif
                 </div>

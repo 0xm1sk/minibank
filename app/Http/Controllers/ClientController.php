@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Account;
 use App\Models\Transaction;
+use App\Services\TransferService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -34,10 +35,14 @@ class ClientController extends Controller
 
         // Get user's account and recent transactions
         $account = $user->primaryAccount();
-        $recentTransactions = $user->transactions()
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
+        $recentTransactions = [];
+        
+        if ($account) {
+            $recentTransactions = $account->transactions()
+                ->orderBy('created_at', 'desc')
+                ->limit(5)
+                ->get();
+        }
 
         return view('client.dashboard', [
             'user' => $user,
@@ -63,16 +68,30 @@ class ClientController extends Controller
     }
 
     /**
-     * View All Transactions
+     * Show Transaction History
      */
     public function viewTransactions()
     {
         $user = Auth::user();
 
-        // Get all user's transactions, newest first
-        $transactions = $user->transactions()
-            ->orderBy('created_at', 'desc')
-            ->paginate(20); // Show 20 per page
+        // Get all user's transaction activity (including pending requests)
+        $allActivity = $user->allTransactionActivity();
+        
+        // Convert to LengthAwarePaginator for pagination
+        $currentPage = request()->get('page', 1);
+        $perPage = 20;
+        $currentItems = $allActivity->slice(($currentPage - 1) * $perPage, $perPage)->values();
+        
+        $transactions = new \Illuminate\Pagination\LengthAwarePaginator(
+            $currentItems,
+            $allActivity->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path' => request()->url(),
+                'pageName' => 'page',
+            ]
+        );
 
         return view('client.transactions', [
             'user' => $user,
@@ -93,9 +112,16 @@ class ClientController extends Controller
      */
     public function makeDeposit(Request $request)
     {
+        // Debug: Log that the method was called
+        \Log::info('makeDeposit called', [
+            'amount' => $request->amount,
+            'description' => $request->description,
+            'user_id' => auth()->id()
+        ]);
+
         // Validate the deposit amount
         $request->validate([
-            'amount' => 'required|numeric|min:1|max:10000',
+            'amount' => 'required|numeric|min:1|max:100000',
             'description' => 'nullable|string|max:255'
         ]);
 
@@ -110,30 +136,18 @@ class ClientController extends Controller
         $description = $request->description ?? 'Deposit';
 
         try {
-            DB::beginTransaction();
+            $transferService = new TransferService();
+            $result = $transferService->deposit($account->id, $amount, $description, $user->id);
 
-            // Update account balance
-            $account->balance += $amount;
-            $account->save();
-
-            // Create transaction record
-            Transaction::create([
-                'user_id' => $user->id,
-                'account_id' => $account->id,
-                'type' => 'deposit',
-                'amount' => $amount,
-                'description' => $description,
-                'balance_after' => $account->balance
-            ]);
-
-            DB::commit();
+            if (isset($result['requires_approval']) && $result['requires_approval']) {
+                return redirect()->route('client.dashboard')
+                    ->with('info', "Your deposit of $" . number_format($amount, 2) . " requires admin approval and is pending review.");
+            }
 
             return redirect()->route('client.dashboard')
-                ->with('success', "Successfully deposited $" . number_format($amount, 2));
-
+                ->with('success', "Deposit of $" . number_format($amount, 2) . " completed successfully.");
         } catch (\Exception $e) {
-            DB::rollback();
-            return back()->withErrors(['error' => 'Deposit failed. Please try again.']);
+            return back()->withErrors(['error' => 'Deposit failed: ' . $e->getMessage()]);
         }
     }
 
@@ -157,7 +171,7 @@ class ClientController extends Controller
     {
         // Validate the withdrawal amount
         $request->validate([
-            'amount' => 'required|numeric|min:1',
+            'amount' => 'required|numeric|min:1|max:100000',
             'description' => 'nullable|string|max:255'
         ]);
 
@@ -171,36 +185,19 @@ class ClientController extends Controller
         $amount = $request->amount;
         $description = $request->description ?? 'Withdrawal';
 
-        // Check if user has enough money
-        if ($account->balance < $amount) {
-            return back()->withErrors(['amount' => 'Insufficient funds. Your balance is $' . number_format($account->balance, 2)]);
-        }
-
         try {
-            DB::beginTransaction();
+            $transferService = new TransferService();
+            $result = $transferService->withdraw($account->id, $amount, $description, $user->id);
 
-            // Update account balance
-            $account->balance -= $amount;
-            $account->save();
-
-            // Create transaction record
-            Transaction::create([
-                'user_id' => $user->id,
-                'account_id' => $account->id,
-                'type' => 'withdrawal',
-                'amount' => $amount,
-                'description' => $description,
-                'balance_after' => $account->balance
-            ]);
-
-            DB::commit();
+            if (isset($result['requires_approval']) && $result['requires_approval']) {
+                return redirect()->route('client.dashboard')
+                    ->with('info', "Your withdrawal of $" . number_format($amount, 2) . " requires admin approval and is pending review.");
+            }
 
             return redirect()->route('client.dashboard')
-                ->with('success', "Successfully withdrew $" . number_format($amount, 2));
-
+                ->with('success', "Withdrawal of $" . number_format($amount, 2) . " completed successfully.");
         } catch (\Exception $e) {
-            DB::rollback();
-            return back()->withErrors(['error' => 'Withdrawal failed. Please try again.']);
+            return back()->withErrors(['error' => 'Withdrawal failed: ' . $e->getMessage()]);
         }
     }
 
@@ -225,7 +222,7 @@ class ClientController extends Controller
         // Validate transfer data
         $request->validate([
             'recipient_email' => 'required|email|exists:users,email',
-            'amount' => 'required|numeric|min:1',
+            'amount' => 'required|numeric|min:1|max:100000',
             'description' => 'nullable|string|max:255'
         ]);
 
@@ -252,52 +249,19 @@ class ClientController extends Controller
         $amount = $request->amount;
         $description = $request->description ?? "Transfer to {$recipient->name}";
 
-        // Check if sender has enough money
-        if ($senderAccount->balance < $amount) {
-            return back()->withErrors(['amount' => 'Insufficient funds. Your balance is $' . number_format($senderAccount->balance, 2)]);
-        }
-
         try {
-            DB::beginTransaction();
+            $transferService = new TransferService();
+            $result = $transferService->transfer($senderAccount->id, $recipientAccount->id, $amount, $description, $sender->id);
 
-            // Remove money from sender's account
-            $senderAccount->balance -= $amount;
-            $senderAccount->save();
-
-            // Add money to recipient's account
-            $recipientAccount->balance += $amount;
-            $recipientAccount->save();
-
-            // Create transaction record for sender (outgoing)
-            Transaction::create([
-                'user_id' => $sender->id,
-                'account_id' => $senderAccount->id,
-                'type' => 'transfer_out',
-                'amount' => $amount,
-                'description' => $description,
-                'recipient_id' => $recipient->id,
-                'balance_after' => $senderAccount->balance
-            ]);
-
-            // Create transaction record for recipient (incoming)
-            Transaction::create([
-                'user_id' => $recipient->id,
-                'account_id' => $recipientAccount->id,
-                'type' => 'transfer_in',
-                'amount' => $amount,
-                'description' => "Transfer from {$sender->name}",
-                'sender_id' => $sender->id,
-                'balance_after' => $recipientAccount->balance
-            ]);
-
-            DB::commit();
+            if (isset($result['requires_approval']) && $result['requires_approval']) {
+                return redirect()->route('client.dashboard')
+                    ->with('info', "Your transfer of $" . number_format($amount, 2) . " to {$recipient->name} requires admin approval and is pending review.");
+            }
 
             return redirect()->route('client.dashboard')
-                ->with('success', "Successfully transferred $" . number_format($amount, 2) . " to {$recipient->name}");
-
+                ->with('success', "Transfer of $" . number_format($amount, 2) . " to {$recipient->name} completed successfully.");
         } catch (\Exception $e) {
-            DB::rollback();
-            return back()->withErrors(['error' => 'Transfer failed. Please try again.']);
+            return back()->withErrors(['error' => 'Transfer failed: ' . $e->getMessage()]);
         }
     }
 

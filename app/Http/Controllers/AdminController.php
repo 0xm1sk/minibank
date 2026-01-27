@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
 use Str;
 
@@ -198,6 +199,61 @@ class AdminController extends Controller
     }
 
     /**
+     * Show all transfer requests (pending, approved, rejected)
+     */
+    public function allRequests(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user || !$user->canApproveTransactions()) {
+            abort(403, "Access denied. Insufficient privileges.");
+        }
+
+        $status = $request->get('status', 'all');
+        $type = $request->get('type', 'all');
+        $date_from = $request->get('date_from');
+        $date_to = $request->get('date_to');
+
+        $query = TransferRequest::with([
+            "fromAccount.user",
+            "toAccount.user", 
+            "requestedBy",
+            "approvedBy"
+        ]);
+
+        // Filter by status
+        if ($status !== 'all') {
+            $query->$status();
+        }
+
+        // Filter by type
+        if ($type !== 'all') {
+            $query->where('type', $type);
+        }
+
+        // Filter by date range
+        if ($date_from) {
+            $query->whereDate('created_at', '>=', $date_from);
+        }
+        if ($date_to) {
+            $query->whereDate('created_at', '<=', $date_to);
+        }
+
+        $requests = $query->orderBy("created_at", "desc")->paginate(25);
+
+        // Get statistics
+        $stats = [
+            'total' => TransferRequest::count(),
+            'pending' => TransferRequest::pending()->count(),
+            'approved' => TransferRequest::approved()->count(),
+            'rejected' => TransferRequest::rejected()->count(),
+            'today' => TransferRequest::whereDate('created_at', today())->count(),
+        ];
+
+        return view("admin.requests", compact("requests", "stats", "status", "type", "date_from", "date_to"));
+    }
+
+    /**
      * Approve transfer request
      */
     public function approveRequest(Request $request, $id)
@@ -223,10 +279,7 @@ class AdminController extends Controller
                 $user->id,
             );
 
-            return back()->with(
-                "success",
-                "Transfer request approved successfully.",
-            );
+            return back()->with("success", "Transfer request approved.");
         } catch (\Exception $e) {
             return back()->with(
                 "error",

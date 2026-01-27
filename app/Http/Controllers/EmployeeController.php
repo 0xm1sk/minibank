@@ -22,14 +22,14 @@ class EmployeeController extends Controller
             return redirect()->route('login')->with('error', 'Please log in to access this page.');
         }
         
-        // Ensure user has employee role (role_id = 2)
-        if ($user->role_id != 2) {
-            abort(403, 'Access denied. Employee access only.');
+        // Ensure user has employee role (role_id = 4,5,6,7) or admin role (role_id = 8)
+        if (!in_array($user->role_id, [4, 5, 6, 7, 8])) {
+            abort(403, 'Access denied. Employee or admin access only.');
         }
 
-        // Get all clients (role_id = 1) with their accounts
-        $clients = User::where('role_id', 1)
-            ->with('account')
+        // Get all clients (role_id = 1,2,3) with their accounts
+        $clients = User::whereIn('role_id', [1, 2, 3])
+            ->with('accounts')
             ->orderBy('name')
             ->get();
 
@@ -49,14 +49,14 @@ class EmployeeController extends Controller
             return redirect()->route('login')->with('error', 'Please log in to access this page.');
         }
         
-        // Ensure user has employee role
-        if ($user->role_id != 2) {
-            abort(403, 'Access denied. Employee access only.');
+        // Ensure user has employee role (role_id = 4,5,6,7) or admin role (role_id = 8)
+        if (!in_array($user->role_id, [4, 5, 6, 7, 8])) {
+            abort(403, 'Access denied. Employee or admin access only.');
         }
 
-        // Get the client with account and transactions
-        $client = User::where('role_id', 1)
-            ->with(['account.transactions' => function($query) {
+        // Get the client with account and transactions (all client types)
+        $client = User::whereIn('role_id', [1, 2, 3])
+            ->with(['accounts.transactions' => function($query) {
                 $query->orderBy('created_at', 'desc');
             }])
             ->findOrFail($id);
@@ -77,20 +77,20 @@ class EmployeeController extends Controller
             return redirect()->route('login')->with('error', 'Please log in to access this page.');
         }
         
-        // Ensure user has employee role
-        if ($user->role_id != 2) {
-            abort(403, 'Access denied. Employee access only.');
+        // Ensure user has employee role (role_id = 4,5,6,7) or admin role (role_id = 8)
+        if (!in_array($user->role_id, [4, 5, 6, 7, 8])) {
+            abort(403, 'Access denied. Employee or admin access only.');
         }
 
         $search = $request->input('search', '');
 
-        // Search clients by name or email
-        $clients = User::where('role_id', 1)
+        // Search clients by name or email (all client types)
+        $clients = User::whereIn('role_id', [1, 2, 3])
             ->where(function($query) use ($search) {
                 $query->where('name', 'like', "%{$search}%")
                       ->orWhere('email', 'like', "%{$search}%");
             })
-            ->with('account')
+            ->with('accounts')
             ->orderBy('name')
             ->get();
 

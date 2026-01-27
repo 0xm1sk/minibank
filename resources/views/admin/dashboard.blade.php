@@ -27,7 +27,7 @@
             @endif
 
             <!-- Quick Actions -->
-            <div class="mb-6 flex space-x-4">
+            <div class="mb-6 flex flex-wrap space-x-4">
                 <a href="{{ route('admin.users') }}"
                    class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
                     All Users
@@ -40,10 +40,17 @@
                    class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
                     Search Users
                 </a>
+                <a href="{{ route('admin.requests') }}"
+                   class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 relative">
+                    📋 All Requests
+                    @if(isset($stats) && $stats['pending_requests'] > 0)
+                        <span class="ml-2 bg-red-600 text-xs px-2 py-1 rounded-full animate-pulse">{{ $stats['pending_requests'] }}</span>
+                    @endif
+                </a>
                 @if(isset($stats) && $stats['pending_requests'] > 0)
                 <a href="{{ route('admin.pending-requests') }}"
                    class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 relative">
-                    Pending Requests
+                    ⚠️ Pending Requests
                     <span class="ml-2 bg-red-800 text-xs px-2 py-1 rounded-full">{{ $stats['pending_requests'] }}</span>
                 </a>
                 @endif

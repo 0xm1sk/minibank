@@ -25,15 +25,13 @@ class Transaction extends Model
      * The attributes that can be filled when creating transactions
      */
     protected $fillable = [
-        'user_id',           // Who made this transaction
         'account_id',        // Which account was affected
         'type',              // deposit, withdrawal, transfer_out, transfer_in
         'amount',            // How much money
         'description',       // What was this transaction for
-        'recipient_id',      // For transfers: who received the money
-        'sender_id',         // For transfers: who sent the money
-        'balance_after',     // Account balance after this transaction
-        'status',            // completed, pending, failed
+        'to_account_id',    // For transfers: destination account
+        'status',            // completed, pending, failed, rejected
+        'reference_number',  // Unique transaction reference
     ];
 
     /**
@@ -41,7 +39,6 @@ class Transaction extends Model
      */
     protected $casts = [
         'amount' => 'decimal:2',
-        'balance_after' => 'decimal:2',
     ];
 
     // Transaction type constants - makes code easier to read
@@ -54,6 +51,7 @@ class Transaction extends Model
     const STATUS_COMPLETED = 'completed';
     const STATUS_PENDING = 'pending';
     const STATUS_FAILED = 'failed';
+    const STATUS_REJECTED = 'failed'; // Use 'failed' instead of 'rejected' to match database schema
 
     /*
     |--------------------------------------------------------------------------
@@ -143,6 +141,14 @@ class Transaction extends Model
     }
 
     /**
+     * Get only rejected transactions
+     */
+    public function scopeRejected($query)
+    {
+        return $query->where('status', self::STATUS_REJECTED);
+    }
+
+    /**
      * Get transactions from the last 30 days
      */
     public function scopeRecent($query)
@@ -221,6 +227,14 @@ class Transaction extends Model
         return $this->status === self::STATUS_PENDING;
     }
 
+    /**
+     * Check if transaction was rejected
+     */
+    public function isRejected()
+    {
+        return $this->status === self::STATUS_REJECTED;
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Display Helper Methods - Nice ways to show transaction info
@@ -274,7 +288,13 @@ class Transaction extends Model
             case self::STATUS_PENDING:
                 return '<span class="badge bg-warning">Pending</span>';
             case self::STATUS_FAILED:
+                // Check if this is a rejected transaction by looking at description
+                if (str_contains($this->description, 'REJECTED:')) {
+                    return '<span class="badge bg-danger">Rejected</span>';
+                }
                 return '<span class="badge bg-danger">Failed</span>';
+            case self::STATUS_REJECTED:
+                return '<span class="badge bg-danger">Rejected</span>';
             default:
                 return '<span class="badge bg-secondary">Unknown</span>';
         }

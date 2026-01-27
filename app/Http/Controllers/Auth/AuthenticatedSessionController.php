@@ -53,11 +53,16 @@ class AuthenticatedSessionController extends Controller
 
         // Simple role-based redirects
         switch ((int) $user->role_id) {
-            case 1: // Client
+            case 1: // Regular Client
+            case 2: // VIP Client
+            case 3: // Enterprise Client
                 return redirect()->intended(route('client.dashboard'));
-            case 2: // Employee
+            case 4: // Employee
+            case 5: // Manager
+            case 6: // Supervisor
+            case 7: // CEO
                 return redirect()->intended(route('employee.dashboard'));
-            case 3: // Admin
+            case 8: // Admin
                 return redirect()->intended(route('admin.dashboard'));
             default:
                 Auth::logout();

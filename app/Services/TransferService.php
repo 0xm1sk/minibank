@@ -69,7 +69,7 @@ class TransferService
 
             // Check if deposit requires approval
             if ($amount > self::APPROVAL_THRESHOLD) {
-                return $this->createTransferRequest(
+                $result = $this->createTransferRequest(
                     null,
                     $account,
                     $amount,
@@ -77,6 +77,8 @@ class TransferService
                     $description,
                     $userId
                 );
+                DB::commit();
+                return $result;
             }
 
             // Execute immediate deposit
@@ -89,7 +91,8 @@ class TransferService
             Log::error('Deposit failed', [
                 'account' => $accountId,
                 'amount' => $amount,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             throw $e;
         }
@@ -213,12 +216,17 @@ class TransferService
      */
     public function rejectTransferRequest($requestId, $adminId, $reason = null)
     {
+        DB::beginTransaction();
+        
         try {
             $request = TransferRequest::findOrFail($requestId);
 
             if (!$request->isPending()) {
                 throw new Exception('Transfer request is not pending');
             }
+
+            // Create a transaction record for the rejected request so clients can see it
+            $this->createRejectedTransaction($request, $reason);
 
             $request->update([
                 'status' => 'rejected',
@@ -227,14 +235,57 @@ class TransferService
                 'rejection_reason' => $reason,
             ]);
 
+            DB::commit();
             return ['success' => true, 'request' => $request];
         } catch (Exception $e) {
+            DB::rollBack();
             Log::error('Transfer rejection failed', [
                 'request_id' => $requestId,
                 'admin_id' => $adminId,
                 'error' => $e->getMessage()
             ]);
             throw $e;
+        }
+    }
+
+    /**
+     * Create a transaction record for rejected requests so clients can see them
+     */
+    private function createRejectedTransaction($request, $reason)
+    {
+        $accountId = null;
+        $type = null;
+        
+        // Determine account and type based on request type
+        switch ($request->type) {
+            case 'deposit':
+                $accountId = $request->to_account_id;
+                $type = Transaction::TYPE_DEPOSIT;
+                break;
+            case 'withdrawal':
+                $accountId = $request->from_account_id;
+                $type = Transaction::TYPE_WITHDRAWAL;
+                break;
+            case 'transfer':
+                $accountId = $request->from_account_id;
+                $type = Transaction::TYPE_TRANSFER_OUT;
+                break;
+        }
+
+        if ($accountId && $type) {
+            $account = Account::find($accountId);
+            if (!$account) {
+                return;
+            }
+
+            $transaction = Transaction::create([
+                'account_id' => $accountId,
+                'type' => $type,
+                'amount' => $request->amount,
+                'description' => ($request->description ?? 'Transaction') . ' (REJECTED: ' . $reason . ')',
+                'reference_number' => $this->generateReferenceNumber(),
+                'status' => Transaction::STATUS_FAILED, // Use 'failed' to match database schema
+            ]);
         }
     }
 

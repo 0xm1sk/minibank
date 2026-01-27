@@ -12,10 +12,10 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 |
 | This file contains the web routes for our mini banking application.
-| We have 3 simple user types:
-| - Client (role_id = 1): Regular bank customers
-| - Employee (role_id = 2): Bank staff
-| - Admin (role_id = 3): Bank managers
+| We have multiple user types:
+| - Clients (role_id = 1,2,3): Regular, VIP, Enterprise bank customers
+| - Employees (role_id = 4,5,6,7): Employee, Manager, Supervisor, CEO
+| - Admin (role_id = 8): Bank administrators with full access
 |
 */
 
@@ -29,11 +29,16 @@ Route::get('/', function () {
 
     // Simple role-based redirects
     switch($user->role_id) {
-        case 1: // Client
+        case 1: // Regular Client
+        case 2: // VIP Client  
+        case 3: // Enterprise Client
             return redirect('/client/dashboard');
-        case 2: // Employee
+        case 4: // Employee
+        case 5: // Manager
+        case 6: // Supervisor
+        case 7: // CEO
             return redirect('/employee/dashboard');
-        case 3: // Admin
+        case 8: // Admin
             return redirect('/admin/dashboard');
         default:
             auth()->logout();
@@ -43,13 +48,13 @@ Route::get('/', function () {
 
 /*
 |--------------------------------------------------------------------------
-| Client Routes (role_id = 1)
+| Client Routes (role_id = 1,2,3)
 |--------------------------------------------------------------------------
 | Routes for regular bank customers who can manage their accounts
 */
 Route::middleware(['auth'])->prefix('client')->group(function () {
-    // Only allow clients (role_id = 1)
-    Route::middleware('role:1')->group(function () {
+    // Only allow clients (role_id = 1,2,3)
+    Route::middleware('role:1,2,3')->group(function () {
 
         // Main dashboard
         Route::get('/dashboard', [ClientController::class, 'dashboard'])
@@ -87,23 +92,23 @@ Route::middleware(['auth'])->prefix('client')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Employee Routes (role_id = 2)
+| Employee Routes (role_id = 4,5,6,7)
 |--------------------------------------------------------------------------
 | Routes for bank staff who help customers
 */
 Route::middleware(['auth'])->prefix('employee')->group(function () {
-    // Only allow employees (role_id = 2) and admins (role_id = 3)
-    Route::middleware('role:2,3')->group(function () {
+    // Only allow employees (role_id = 4,5,6,7) and admins (role_id = 8)
+    Route::middleware('role:4,5,6,7,8')->group(function () {
 
         // Employee dashboard
         Route::get('/dashboard', [EmployeeController::class, 'dashboard'])
             ->name('employee.dashboard');
 
         // View client information
-        Route::get('/clients', [EmployeeController::class, 'viewAllClients'])
+        Route::get('/clients', [EmployeeController::class, 'dashboard'])
             ->name('employee.clients');
 
-        Route::get('/client/{id}', [EmployeeController::class, 'viewClientDetails'])
+        Route::get('/client/{id}', [EmployeeController::class, 'clientDetails'])
             ->name('employee.client.details');
 
         // Search for clients
@@ -118,14 +123,14 @@ Route::middleware(['auth'])->prefix('employee')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Admin Routes (role_id = 3)
+| Admin Routes (role_id = 8) and Approval Routes (role_id = 5,6,7,8)
 |--------------------------------------------------------------------------
 | Routes for bank managers who can do everything
+| Routes for transaction approvals (Manager, Supervisor, CEO, Admin)
 */
 Route::middleware(['auth'])->prefix('admin')->group(function () {
-    // Only allow admins (role_id = 3)
-    Route::middleware('role:3')->group(function () {
-
+    // Admin only routes (role_id = 8)
+    Route::middleware('role:8')->group(function () {
         // Admin dashboard
         Route::get('/dashboard', [AdminController::class, 'dashboard'])
             ->name('admin.dashboard');
@@ -136,9 +141,6 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
 
         Route::get('/users/search', [AdminController::class, 'searchUsers'])
             ->name('admin.search');
-
-        Route::get('/pending-requests', [AdminController::class, 'pendingRequests'])
-            ->name('admin.pending-requests');
 
         Route::get('/user/create', [AdminController::class, 'createUserForm'])
             ->name('admin.user.create');
@@ -166,6 +168,21 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         // System settings
         Route::get('/settings', [AdminController::class, 'settings'])
             ->name('admin.settings');
+    });
+
+    // Approval routes (Manager, Supervisor, CEO, Admin)
+    Route::middleware('role:5,6,7,8')->group(function () {
+        Route::get('/pending-requests', [AdminController::class, 'pendingRequests'])
+            ->name('admin.pending-requests');
+
+        Route::get('/requests', [AdminController::class, 'allRequests'])
+            ->name('admin.requests');
+
+        Route::post('/approve-request/{id}', [AdminController::class, 'approveRequest'])
+            ->name('admin.approve-request');
+
+        Route::post('/reject-request/{id}', [AdminController::class, 'rejectRequest'])
+            ->name('admin.reject-request');
     });
 });
 
