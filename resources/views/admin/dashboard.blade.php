@@ -28,7 +28,7 @@
 
             <!-- Quick Actions -->
             <div class="mb-6 flex space-x-4">
-                <a href="{{ route('admin.all-users') }}"
+                <a href="{{ route('admin.users') }}"
                    class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
                     All Users
                 </a>

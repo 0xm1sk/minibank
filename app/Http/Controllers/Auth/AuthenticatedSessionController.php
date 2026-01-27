@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
@@ -20,30 +20,52 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Handle an incoming authentication request.
-     * Redirect users to their role-based dashboard after login.
+     * Handle an incoming authentication request using a simple
+     * Auth::attempt()+role-based redirect flow.
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(Request $request): RedirectResponse
     {
-        $request->authenticate();
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+
+        // Optional debug logging to laravel.log for troubleshooting
+        Log::info('Login attempt', [
+            'email' => $credentials['email'],
+            'remember' => $request->boolean('remember'),
+        ]);
+
+        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+            Log::warning('Login failed: invalid credentials', [
+                'email' => $credentials['email'],
+            ]);
+
+            return back()
+                ->withErrors(['email' => __('These credentials do not match our records.')])
+                ->withInput($request->only('email'));
+        }
 
         $request->session()->regenerate();
 
-        // Get the authenticated user
+        /** @var \App\Models\User $user */
         $user = Auth::user();
-        
-        // Redirect based on role_id
-        // 1 = client, 2 = employee, 3 = admin
-        if ($user->role_id == 1) {
-            return redirect()->intended(route('client.dashboard', absolute: false));
-        } elseif ($user->role_id == 2) {
-            return redirect()->intended(route('employee.dashboard', absolute: false));
-        } elseif ($user->role_id == 3) {
-            return redirect()->intended(route('admin.dashboard', absolute: false));
-        }
 
-        // Fallback to home if role is not recognized
-        return redirect()->intended('/home');
+        // Simple role-based redirects
+        switch ((int) $user->role_id) {
+            case 1: // Client
+                return redirect()->intended(route('client.dashboard'));
+            case 2: // Employee
+                return redirect()->intended(route('employee.dashboard'));
+            case 3: // Admin
+                return redirect()->intended(route('admin.dashboard'));
+            default:
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return redirect('/login')->with('error', 'Your account role is not configured correctly.');
+        }
     }
 
     /**
@@ -57,6 +79,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect('/login');
     }
 }
+

@@ -47,7 +47,7 @@ Route::get('/', function () {
 |--------------------------------------------------------------------------
 | Routes for regular bank customers who can manage their accounts
 */
-Route::middleware(['auth', 'verified'])->prefix('client')->group(function () {
+Route::middleware(['auth'])->prefix('client')->group(function () {
     // Only allow clients (role_id = 1)
     Route::middleware('role:1')->group(function () {
 
@@ -91,7 +91,7 @@ Route::middleware(['auth', 'verified'])->prefix('client')->group(function () {
 |--------------------------------------------------------------------------
 | Routes for bank staff who help customers
 */
-Route::middleware(['auth', 'verified'])->prefix('employee')->group(function () {
+Route::middleware(['auth'])->prefix('employee')->group(function () {
     // Only allow employees (role_id = 2) and admins (role_id = 3)
     Route::middleware('role:2,3')->group(function () {
 
@@ -122,7 +122,7 @@ Route::middleware(['auth', 'verified'])->prefix('employee')->group(function () {
 |--------------------------------------------------------------------------
 | Routes for bank managers who can do everything
 */
-Route::middleware(['auth', 'verified'])->prefix('admin')->group(function () {
+Route::middleware(['auth'])->prefix('admin')->group(function () {
     // Only allow admins (role_id = 3)
     Route::middleware('role:3')->group(function () {
 
@@ -131,15 +131,24 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->group(function () {
             ->name('admin.dashboard');
 
         // User management
-        Route::get('/users', [AdminController::class, 'manageUsers'])
+        Route::get('/users', [AdminController::class, 'allUsers'])
             ->name('admin.users');
 
-        Route::get('/user/create', [AdminController::class, 'showCreateUserForm'])
+        Route::get('/users/search', [AdminController::class, 'searchUsers'])
+            ->name('admin.search');
+
+        Route::get('/pending-requests', [AdminController::class, 'pendingRequests'])
+            ->name('admin.pending-requests');
+
+        Route::get('/user/create', [AdminController::class, 'createUserForm'])
             ->name('admin.user.create');
         Route::post('/user/create', [AdminController::class, 'createUser'])
             ->name('admin.user.store');
 
-        Route::get('/user/{id}/edit', [AdminController::class, 'showEditUserForm'])
+        Route::get('/user/{id}', [AdminController::class, 'userDetails'])
+            ->name('admin.user.details');
+
+        Route::get('/user/{id}/edit', [AdminController::class, 'editUser'])
             ->name('admin.user.edit');
         Route::put('/user/{id}', [AdminController::class, 'updateUser'])
             ->name('admin.user.update');
@@ -148,14 +157,14 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->group(function () {
             ->name('admin.user.delete');
 
         // System reports and analytics
-        Route::get('/reports', [AdminController::class, 'viewSystemReports'])
+        Route::get('/reports', [AdminController::class, 'reports'])
             ->name('admin.reports');
 
-        Route::get('/transactions', [AdminController::class, 'viewAllTransactions'])
+        Route::get('/transactions', [AdminController::class, 'allTransactions'])
             ->name('admin.transactions');
 
         // System settings
-        Route::get('/settings', [AdminController::class, 'systemSettings'])
+        Route::get('/settings', [AdminController::class, 'settings'])
             ->name('admin.settings');
     });
 });
@@ -166,7 +175,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->group(function () {
 |--------------------------------------------------------------------------
 | Routes available to all authenticated users for managing their profile
 */
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

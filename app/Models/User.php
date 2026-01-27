@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Models\Role;
 
 /**
  * User Model - Simplified Mini Bank
@@ -68,6 +69,14 @@ class User extends Authenticatable
     | Relationships - How users connect to other data
     |--------------------------------------------------------------------------
     */
+
+    /**
+     * Each user belongs to a role (via role_id).
+     */
+    public function role()
+    {
+        return $this->belongsTo(Role::class, 'role_id');
+    }
 
     /**
      * A user can have multiple bank accounts

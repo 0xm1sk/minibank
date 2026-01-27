@@ -168,11 +168,15 @@ class DatabaseSeeder extends Seeder
     {
         // Get the main client for creating transactions
         $client = User::where('email', 'client@test.com')->first();
-        $clientAccount = $client->primaryAccount();
+        $clientAccount = $client?->primaryAccount();
 
         // Get Alice for transfer example
         $alice = User::where('email', 'alice@example.com')->first();
-        $aliceAccount = $alice->primaryAccount();
+        $aliceAccount = $alice?->primaryAccount();
+
+        if (! $clientAccount) {
+            return;
+        }
 
         // Sample transactions for the main client
         $transactions = [
@@ -180,74 +184,56 @@ class DatabaseSeeder extends Seeder
                 'type' => 'deposit',
                 'amount' => 500.00,
                 'description' => 'Initial deposit',
-                'created_at' => now()->subDays(10)
+                'created_at' => now()->subDays(10),
             ],
             [
                 'type' => 'deposit',
                 'amount' => 1000.00,
                 'description' => 'Salary deposit',
-                'created_at' => now()->subDays(7)
+                'created_at' => now()->subDays(7),
             ],
             [
                 'type' => 'withdrawal',
                 'amount' => 100.00,
                 'description' => 'ATM withdrawal',
-                'created_at' => now()->subDays(5)
+                'created_at' => now()->subDays(5),
             ],
             [
                 'type' => 'withdrawal',
                 'amount' => 50.00,
                 'description' => 'Coffee shop',
-                'created_at' => now()->subDays(3)
+                'created_at' => now()->subDays(3),
             ],
             [
                 'type' => 'transfer_out',
                 'amount' => 200.00,
                 'description' => 'Transfer to Alice Smith',
-                'recipient_id' => $alice->id,
-                'created_at' => now()->subDays(2)
-            ]
+                'created_at' => now()->subDays(2),
+            ],
         ];
 
-        $runningBalance = 0; // We'll calculate this properly
-
         foreach ($transactions as $transactionData) {
-            // Calculate balance after transaction
-            if ($transactionData['type'] === 'deposit' || $transactionData['type'] === 'transfer_in') {
-                $runningBalance += $transactionData['amount'];
-            } else {
-                $runningBalance -= $transactionData['amount'];
-            }
-
             Transaction::create([
-                'user_id' => $client->id,
                 'account_id' => $clientAccount->id,
                 'type' => $transactionData['type'],
                 'amount' => $transactionData['amount'],
                 'description' => $transactionData['description'],
-                'recipient_id' => $transactionData['recipient_id'] ?? null,
-                'balance_after' => $runningBalance,
                 'created_at' => $transactionData['created_at'],
-                'updated_at' => $transactionData['created_at']
+                'updated_at' => $transactionData['created_at'],
             ]);
         }
 
-        // Create corresponding transfer_in transaction for Alice
-        Transaction::create([
-            'user_id' => $alice->id,
-            'account_id' => $aliceAccount->id,
-            'type' => 'transfer_in',
-            'amount' => 200.00,
-            'description' => 'Transfer from John Client',
-            'sender_id' => $client->id,
-            'balance_after' => $aliceAccount->balance + 200.00,
-            'created_at' => now()->subDays(2),
-            'updated_at' => now()->subDays(2)
-        ]);
-
-        // Update Alice's balance
-        $aliceAccount->balance += 200.00;
-        $aliceAccount->save();
+        // Create corresponding transfer_in transaction for Alice, if she exists
+        if ($aliceAccount) {
+            Transaction::create([
+                'account_id' => $aliceAccount->id,
+                'type' => 'transfer_in',
+                'amount' => 200.00,
+                'description' => 'Transfer from John Client',
+                'created_at' => now()->subDays(2),
+                'updated_at' => now()->subDays(2),
+            ]);
+        }
 
         // Add a few more random transactions for other users
         $this->createRandomTransactions();
@@ -261,7 +247,10 @@ class DatabaseSeeder extends Seeder
         $users = User::where('role_id', User::ROLE_CLIENT)->with('accounts')->get();
 
         foreach ($users as $user) {
-            if (!$user->primaryAccount()) continue;
+            $account = $user->primaryAccount();
+            if (! $account) {
+                continue;
+            }
 
             // Create 2-5 random transactions per user
             $transactionCount = rand(2, 5);
@@ -273,19 +262,18 @@ class DatabaseSeeder extends Seeder
 
                 $descriptions = [
                     'deposit' => ['Payroll deposit', 'Cash deposit', 'Check deposit', 'Online transfer'],
-                    'withdrawal' => ['ATM withdrawal', 'Store purchase', 'Online payment', 'Gas station']
+                    'withdrawal' => ['ATM withdrawal', 'Store purchase', 'Online payment', 'Gas station'],
                 ];
 
                 $description = $descriptions[$type][array_rand($descriptions[$type])];
 
                 Transaction::create([
-                    'user_id' => $user->id,
-                    'account_id' => $user->primaryAccount()->id,
+                    'account_id' => $account->id,
                     'type' => $type,
                     'amount' => $amount,
                     'description' => $description,
-                    'balance_after' => $user->getBalance(), // Simplified - not calculating actual running balance
                     'created_at' => now()->subDays(rand(1, 30)),
+                    'updated_at' => now(),
                 ]);
             }
         }

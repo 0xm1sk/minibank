@@ -32,7 +32,7 @@
                 <div class="flex justify-between items-start mb-6">
                     <h3 class="text-xl font-semibold text-gray-200">User Information</h3>
                     <div class="flex space-x-2">
-                        @if(Auth::user()->role_id >= 5)
+                        @if(Auth::user() && Auth::user()->isAdmin())
                             <a href="{{ route('admin.user.edit', $user->id) }}"
                                class="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700">
                                 Edit User
@@ -223,7 +223,7 @@
             @endif
 
             <!-- User Actions -->
-            @if(Auth::user()->role_id >= 5)
+            @if(Auth::user() && Auth::user()->isAdmin())
             <div class="bg-gray-800 shadow-md rounded-lg p-6">
                 <h3 class="text-lg font-semibold text-gray-200 mb-4">User Actions</h3>
                 <div class="flex flex-wrap gap-4">
@@ -231,7 +231,7 @@
                        class="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700">
                         Edit User
                     </a>
-                    @if($user->id != Auth::user()->id)
+                    @if(Auth::user() && $user->id != Auth::user()->id)
                         @if($user->status == 'active')
                             <form method="POST" action="{{ route('admin.user.update', $user->id) }}" class="inline">
                                 @csrf
@@ -261,17 +261,15 @@
                             </form>
                         @endif
 
-                        @if(Auth::user()->role_id == 8)
-                            <form method="POST" action="{{ route('admin.user.delete', $user->id) }}" class="inline">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit"
-                                        class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                                        onclick="return confirm('Are you sure you want to delete this user? This action cannot be undone.');">
-                                    Delete User
-                                </button>
-                            </form>
-                        @endif
+                        <form method="POST" action="{{ route('admin.user.delete', $user->id) }}" class="inline">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit"
+                                    class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                                    onclick="return confirm('Are you sure you want to delete this user? This action cannot be undone.');">
+                                Delete User
+                            </button>
+                        </form>
                     @endif
                 </div>
             </div>

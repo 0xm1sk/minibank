@@ -80,56 +80,14 @@ class AdminController extends Controller
     {
         $user = Auth::user();
 
-        if (
-            !$user ||
-            !in_array($user->role_id, [
-                Role::MANAGER,
-                Role::SUPERVISOR,
-                Role::CEO,
-                Role::ADMIN,
-            ])
-        ) {
-            abort(403, "Access denied. Insufficient privileges.");
+        // For this simplified version, only allow Laravel-level admins (role_id = 3)
+        if (! $user || ! $user->isAdmin()) {
+            abort(403, "Access denied. Admin access only.");
         }
 
         $query = User::with(["role", "accounts"]);
 
-        // Role-based filtering: show only users that current user can manage
-        switch ($user->role_id) {
-            case Role::EMPLOYEE: // 4 - can only see clients
-                $query->whereIn("role_id", [
-                    Role::REGULAR_CLIENT,
-                    Role::VIP_CLIENT,
-                    Role::ENTERPRISE_CLIENT,
-                ]);
-                break;
-            case Role::MANAGER: // 5 - can see clients and employees
-                $query->whereIn("role_id", [
-                    Role::REGULAR_CLIENT,
-                    Role::VIP_CLIENT,
-                    Role::ENTERPRISE_CLIENT,
-                    Role::EMPLOYEE,
-                ]);
-                break;
-            case Role::SUPERVISOR: // 6 - can see clients, employees, and managers
-                $query->whereIn("role_id", [
-                    Role::REGULAR_CLIENT,
-                    Role::VIP_CLIENT,
-                    Role::ENTERPRISE_CLIENT,
-                    Role::EMPLOYEE,
-                    Role::MANAGER,
-                ]);
-                break;
-            case Role::CEO: // 7 - can see all except admin
-                $query->where("role_id", "!=", Role::ADMIN);
-                break;
-            case Role::ADMIN: // 8 - can see everyone
-                // No restrictions
-                break;
-            default:
-                // Restrict to own user only if unknown role
-                $query->where("id", $user->id);
-        }
+        // Admin can see everyone in this simplified setup
 
         // Get all users with their roles and accounts
         $users = $query->orderBy("role_id")->orderBy("name")->get();
@@ -144,7 +102,7 @@ class AdminController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user || !$user->isAdmin()) {
+        if (! $user || ! $user->isAdmin()) {
             abort(403, "Access denied. Admin access only.");
         }
 
@@ -153,44 +111,6 @@ class AdminController extends Controller
         $statusFilter = $request->input("status", "");
 
         $query = User::with(["role", "accounts"]);
-
-        // Role-based filtering: show only users that current user can manage
-        $currentUser = Auth::user();
-        switch ($currentUser->role_id) {
-            case Role::EMPLOYEE: // 4 - can only see clients
-                $query->whereIn("role_id", [
-                    Role::REGULAR_CLIENT,
-                    Role::VIP_CLIENT,
-                    Role::ENTERPRISE_CLIENT,
-                ]);
-                break;
-            case Role::MANAGER: // 5 - can see clients and employees
-                $query->whereIn("role_id", [
-                    Role::REGULAR_CLIENT,
-                    Role::VIP_CLIENT,
-                    Role::ENTERPRISE_CLIENT,
-                    Role::EMPLOYEE,
-                ]);
-                break;
-            case Role::SUPERVISOR: // 6 - can see clients, employees, and managers
-                $query->whereIn("role_id", [
-                    Role::REGULAR_CLIENT,
-                    Role::VIP_CLIENT,
-                    Role::ENTERPRISE_CLIENT,
-                    Role::EMPLOYEE,
-                    Role::MANAGER,
-                ]);
-                break;
-            case Role::CEO: // 7 - can see all except admin
-                $query->where("role_id", "!=", Role::ADMIN);
-                break;
-            case Role::ADMIN: // 8 - can see everyone
-                // No restrictions
-                break;
-            default:
-                // Restrict to own user only if unknown role
-                $query->where("id", $currentUser->id);
-        }
 
         // Search by name, email, or account number
         if ($search) {
@@ -215,41 +135,8 @@ class AdminController extends Controller
 
         $users = $query->orderBy("name")->paginate(20);
 
-        // Filter roles based on current user's permissions
+        // For now, just load all roles for filters
         $roles = Role::all();
-        if (
-            $currentUser->role_id != Role::ADMIN &&
-            $currentUser->role_id != Role::CEO
-        ) {
-            $allowedRoleIds = [];
-            switch ($currentUser->role_id) {
-                case Role::EMPLOYEE:
-                    $allowedRoleIds = [
-                        Role::REGULAR_CLIENT,
-                        Role::VIP_CLIENT,
-                        Role::ENTERPRISE_CLIENT,
-                    ];
-                    break;
-                case Role::MANAGER:
-                    $allowedRoleIds = [
-                        Role::REGULAR_CLIENT,
-                        Role::VIP_CLIENT,
-                        Role::ENTERPRISE_CLIENT,
-                        Role::EMPLOYEE,
-                    ];
-                    break;
-                case Role::SUPERVISOR:
-                    $allowedRoleIds = [
-                        Role::REGULAR_CLIENT,
-                        Role::VIP_CLIENT,
-                        Role::ENTERPRISE_CLIENT,
-                        Role::EMPLOYEE,
-                        Role::MANAGER,
-                    ];
-                    break;
-            }
-            $roles = $roles->whereIn("id", $allowedRoleIds);
-        }
 
         return view(
             "admin.search-results",
@@ -271,17 +158,13 @@ class AdminController extends Controller
         $userDetails = User::with([
             "role",
             "accounts.transactions",
-            "transferRequestsRequested",
-            "transferRequestsApproved",
         ])->findOrFail($id);
 
         // Get user's transaction history
-        $transactions = Transaction::whereHas("account", function ($q) use (
-            $id,
-        ) {
-            $q->where("user_id", $id);
-        })
-            ->with(["account", "toAccount"])
+        $transactions = Transaction::whereHas("account", function ($q) use ($id) {
+                $q->where("user_id", $id);
+            })
+            ->with(["account"])
             ->orderBy("created_at", "desc")
             ->paginate(20);
 
@@ -619,118 +502,11 @@ class AdminController extends Controller
 
         $userToDelete = User::findOrFail($id);
 
-        // Check if user has accounts with balance
-        if ($userToDelete->accounts()->where("balance", ">", 0)->exists()) {
-            return redirect()
-                ->route("admin.dashboard")
-                ->with(
-                    "error",
-                    "Cannot delete user with active account balances.",
-                );
-        }
-
         $userToDelete->delete();
 
         return redirect()
             ->route("admin.dashboard")
             ->with("success", "User deleted successfully.");
-    }
-
-    /**
-     * Show all transactions with filters
-     */
-    public function allTransactions(Request $request)
-    {
-        $user = Auth::user();
-
-        if (!$user || !$user->role->canViewAllTransactions()) {
-            abort(403, "Access denied. Insufficient privileges.");
-        }
-
-        $query = Transaction::with(["account.user", "toAccount.user"]);
-
-        // Filter by date range
-        if ($request->date_from) {
-            $query->whereDate("created_at", ">=", $request->date_from);
-        }
-        if ($request->date_to) {
-            $query->whereDate("created_at", "<=", $request->date_to);
-        }
-
-        // Filter by type
-        if ($request->type) {
-            $query->where("type", $request->type);
-        }
-
-        // Filter by amount range
-        if ($request->amount_min) {
-            $query->where("amount", ">=", $request->amount_min);
-        }
-        if ($request->amount_max) {
-            $query->where("amount", "<=", $request->amount_max);
-        }
-
-        $transactions = $query->orderBy("created_at", "desc")->paginate(50);
-
-        return view("admin.transactions", compact("transactions"));
-    }
-
-    /**
-     * Generate reports
-     */
-    public function reports()
-    {
-        $user = Auth::user();
-
-        if (!$user || !$user->isAdmin()) {
-            abort(403, "Access denied. Admin access only.");
-        }
-
-        // Monthly transaction summary
-        $monthlyStats = Transaction::selectRaw(
-            '
-            MONTH(created_at) as month,
-            YEAR(created_at) as year,
-            COUNT(*) as total_transactions,
-            SUM(amount) as total_amount
-        ',
-        )
-            ->whereYear("created_at", date("Y"))
-            ->groupBy("year", "month")
-            ->orderBy("year", "desc")
-            ->orderBy("month", "desc")
-            ->get();
-
-        // Role distribution
-        $roleStats = User::selectRaw("roles.name, COUNT(*) as count")
-            ->join("roles", "users.role_id", "=", "roles.id")
-            ->groupBy("roles.name")
-            ->get();
-
-        return view("admin.reports", compact("monthlyStats", "roleStats"));
-    }
-
-    /**
-     * Show pending transfer requests for approval
-     */
-    public function pendingRequests()
-    {
-        $user = Auth::user();
-
-        if (!$user || !$user->canApproveTransactions()) {
-            abort(403, "Access denied. Insufficient privileges.");
-        }
-
-        $requests = TransferRequest::with([
-            "fromAccount.user",
-            "toAccount.user",
-            "requestedBy",
-        ])
-            ->pending()
-            ->orderBy("created_at", "desc")
-            ->paginate(20);
-
-        return view("admin.pending-requests", compact("requests"));
     }
 
     /**
