@@ -112,16 +112,9 @@ class ClientController extends Controller
      */
     public function makeDeposit(Request $request)
     {
-        // Debug: Log that the method was called
-        \Log::info('makeDeposit called', [
-            'amount' => $request->amount,
-            'description' => $request->description,
-            'user_id' => auth()->id()
-        ]);
-
         // Validate the deposit amount
         $request->validate([
-            'amount' => 'required|numeric|min:1|max:100000',
+            'amount' => 'required|numeric|min:1|max:1000000',
             'description' => 'nullable|string|max:255'
         ]);
 
@@ -171,7 +164,7 @@ class ClientController extends Controller
     {
         // Validate the withdrawal amount
         $request->validate([
-            'amount' => 'required|numeric|min:1|max:100000',
+            'amount' => 'required|numeric|min:1|max:1000000',
             'description' => 'nullable|string|max:255'
         ]);
 
@@ -222,7 +215,7 @@ class ClientController extends Controller
         // Validate transfer data
         $request->validate([
             'recipient_email' => 'required|email|exists:users,email',
-            'amount' => 'required|numeric|min:1|max:100000',
+            'amount' => 'required|numeric|min:1|max:1000000',
             'description' => 'nullable|string|max:255'
         ]);
 

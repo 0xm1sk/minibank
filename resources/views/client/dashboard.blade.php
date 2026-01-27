@@ -7,24 +7,6 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <!-- Success/Error Messages -->
-            @if(session('success'))
-                <div class="bg-green-900 border border-green-700 text-green-200 px-4 py-3 rounded mb-4">
-                    {{ session('success') }}
-                </div>
-            @endif
-
-            @if(session('error'))
-                <div class="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded mb-4">
-                    {{ session('error') }}
-                </div>
-            @endif
-
-            @if(session('info'))
-                <div class="bg-blue-900 border border-blue-700 text-blue-200 px-4 py-3 rounded mb-4">
-                    {{ session('info') }}
-                </div>
-            @endif
 
             <!-- Account Card -->
             <div class="bg-gray-800 shadow-md rounded-lg p-6 mb-6">

@@ -7,24 +7,6 @@
 
     <div class="py-12 padding 15 " >
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-10">
-            <!-- Success/Error Messages -->
-            @if(session('success'))
-                <div class="bg-green-900 border border-green-700 text-green-200 px-4 py-3 rounded mb-4">
-                    {{ session('success') }}
-                </div>
-            @endif
-
-            @if(session('error'))
-                <div class="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded mb-4">
-                    {{ session('error') }}
-                </div>
-            @endif
-
-            @if(session('info'))
-                <div class="bg-blue-900 border border-blue-700 text-blue-200 px-4 py-3 rounded mb-4">
-                    {{ session('info') }}
-                </div>
-            @endif
 
             <!-- Quick Actions -->
             <div class="mb-6 flex flex-wrap space-x-4">

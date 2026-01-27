@@ -28,18 +28,6 @@
             <!-- Transfer Form -->
             <div class="bg-gray-800 shadow-md rounded-lg p-6">
                 <h3 class="text-lg font-semibold text-gray-200 mb-4">Send Money to Another User</h3>
-                
-                @if(session('success'))
-                    <div class="bg-green-900 border border-green-700 text-green-200 px-4 py-3 rounded mb-4">
-                        {{ session('success') }}
-                    </div>
-                @endif
-
-                @if(session('error'))
-                    <div class="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded mb-4">
-                        {{ session('error') }}
-                    </div>
-                @endif
 
                 @if($errors->any())
                     <div class="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded mb-4">

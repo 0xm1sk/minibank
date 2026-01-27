@@ -30,7 +30,7 @@ class TransferService
 
             // Check if transfer requires approval
             if ($amount > self::APPROVAL_THRESHOLD) {
-                return $this->createTransferRequest(
+                $result = $this->createTransferRequest(
                     $fromAccount,
                     $toAccount,
                     $amount,
@@ -38,6 +38,8 @@ class TransferService
                     $description,
                     $userId
                 );
+                DB::commit();
+                return $result;
             }
 
             // Execute immediate transfer
@@ -115,7 +117,7 @@ class TransferService
 
             // Check if withdrawal requires approval
             if ($amount > self::APPROVAL_THRESHOLD) {
-                return $this->createTransferRequest(
+                $result = $this->createTransferRequest(
                     $account,
                     null,
                     $amount,
@@ -123,6 +125,8 @@ class TransferService
                     $description,
                     $userId
                 );
+                DB::commit();
+                return $result;
             }
 
             // Execute immediate withdrawal

@@ -3,7 +3,6 @@
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\AdminController;
-use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -184,18 +183,6 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
         Route::post('/reject-request/{id}', [AdminController::class, 'rejectRequest'])
             ->name('admin.reject-request');
     });
-});
-
-/*
-|--------------------------------------------------------------------------
-| Profile Routes
-|--------------------------------------------------------------------------
-| Routes available to all authenticated users for managing their profile
-*/
-Route::middleware(['auth'])->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 // Include authentication routes (login, register, etc.)
