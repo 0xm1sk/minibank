@@ -24,7 +24,11 @@
                 </a>
                 <a href="{{ route('admin.requests') }}"
                    class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 relative">
-                    📋 All Requests
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                        <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H6a2 2 0 100 4h2a2 2 0 100 4h-.5a1 1 0 000 2H8a2 2 0 002-2v-1a2 2 0 00-2-2H6a2 2 0 01-2-2V5z" clip-rule="evenodd"/>
+                    </svg>
+                    All Requests
                     @if(isset($stats) && $stats['pending_requests'] > 0)
                         <span class="ml-2 bg-red-600 text-xs px-2 py-1 rounded-full animate-pulse">{{ $stats['pending_requests'] }}</span>
                     @endif
@@ -32,7 +36,10 @@
                 @if(isset($stats) && $stats['pending_requests'] > 0)
                 <a href="{{ route('admin.pending-requests') }}"
                    class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 relative">
-                    ⚠️ Pending Requests
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                    Pending Requests
                     <span class="ml-2 bg-red-800 text-xs px-2 py-1 rounded-full">{{ $stats['pending_requests'] }}</span>
                 </a>
                 @endif
@@ -69,7 +76,7 @@
                     <h3 class="text-lg font-semibold mb-4 text-gray-200">Pending Transfer Requests</h3>
 
                     <div class="overflow-x-auto">
-                        <table class="min-w-full table-auto border-collapse">
+                        <table class="min-w-full table-auto border-collapse rounded-lg overflow-hidden">
                             <thead>
                                 <tr class="bg-gray-700">
                                     <th class="px-4 py-3 text-left border border-gray-600 text-gray-200">Type</th>
@@ -132,7 +139,7 @@
                     <h3 class="text-lg font-semibold mb-4 text-gray-200">Recent Transactions</h3>
 
                     <div class="overflow-x-auto">
-                        <table class="min-w-full table-auto border-collapse">
+                        <table class="min-w-full table-auto border-collapse rounded-lg overflow-hidden">
                             <thead>
                                 <tr class="bg-gray-700">
                                     <th class="px-4 py-3 text-left border border-gray-600 text-gray-200">User</th>

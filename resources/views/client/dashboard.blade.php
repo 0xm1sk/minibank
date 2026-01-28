@@ -5,11 +5,11 @@
         </h2>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+    <div class="py-6 sm:py-8 lg:py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
             <!-- Account Card -->
-            <div class="bg-gray-800 shadow-md rounded-lg p-6 mb-6">
+            <div class="bg-gray-800 shadow-md rounded-lg p-4 sm:p-6 mb-6">
                 <div class="flex justify-between items-center">
                     <div>
                         <h1 class="text-2xl font-bold mb-2 text-gray-200">Welcome, {{ $user->name }}</h1>
@@ -21,17 +21,17 @@
                         @endif
                     </div>
                     @if($account)
-                        <div class="space-x-2">
+                        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                             <a href="{{ route('client.deposit.form') }}"
-                               class="px-4 py-2 bg-indigo-600 text-sm font-medium rounded-md hover:bg-indigo-700">
+                               class="px-3 sm:px-4 py-2 bg-indigo-600 text-sm font-medium rounded-md hover:bg-indigo-700 text-center">
                                 + Deposit
                             </a>
                             <a href="{{ route('client.withdraw.form') }}"
-                               class="px-4 py-2 bg-red-600 text-sm font-medium rounded-md hover:bg-red-700">
+                               class="px-3 sm:px-4 py-2 bg-red-600 text-sm font-medium rounded-md hover:bg-red-700 text-center">
                                 Withdraw
                             </a>
                             <a href="{{ route('client.transfer.form') }}"
-                               class="px-4 py-2 bg-green-600 text-sm font-medium rounded-md hover:bg-green-700">
+                               class="px-3 sm:px-4 py-2 bg-green-600 text-sm font-medium rounded-md hover:bg-green-700 text-center">
                                 Transfer Money
                             </a>
                         </div>
@@ -41,40 +41,41 @@
 
             <!-- Transactions Table -->
             @if($account && $recentTransactions && $recentTransactions->count())
-            <div class="bg-gray-800 shadow-md rounded-lg p-6 overflow-x-auto">
+            <div class="bg-gray-800 shadow-md rounded-lg p-4 sm:p-6 overflow-x-auto">
                 <h2 class="text-xl font-semibold mb-4 text-gray-200">Recent Transaction History</h2>
-                <table class="min-w-full table-auto border-collapse">
+                <table class="min-w-full table-auto border-collapse rounded-lg overflow-hidden">
                     <thead>
                         <tr class="bg-gray-700">
-                            <th class="px-4 py-2 text-left border border-gray-600 text-gray-200">Date</th>
-                            <th class="px-4 py-2 text-left border border-gray-600 text-gray-200">Type</th>
-                            <th class="px-4 py-2 text-left border border-gray-600 text-gray-200">Description</th>
-                            <th class="px-4 py-2 text-right border border-gray-600 text-gray-200">Amount</th>
-                            <th class="px-4 py-2 text-right border border-gray-600 text-gray-200">Status</th>
+                            <th class="px-2 sm:px-4 py-2 text-left border border-gray-600 text-gray-200 text-xs sm:text-sm">Date</th>
+                            <th class="px-2 sm:px-4 py-2 text-left border border-gray-600 text-gray-200 text-xs sm:text-sm">Type</th>
+                            <th class="px-2 sm:px-4 py-2 text-left border border-gray-600 text-gray-200 text-xs sm:text-sm">Description</th>
+                            <th class="px-2 sm:px-4 py-2 text-right border border-gray-600 text-gray-200 text-xs sm:text-sm">Amount</th>
+                            <th class="px-2 sm:px-4 py-2 text-right border border-gray-600 text-gray-200 text-xs sm:text-sm">Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($recentTransactions as $t)
                             <tr class="hover:bg-gray-700">
-                                <td class="px-4 py-2 border border-gray-600 text-gray-300">{{ $t->created_at->format('Y-m-d H:i') }}</td>
-                                <td class="px-4 py-2 border border-gray-600 text-gray-300 capitalize">{{ str_replace('_', ' ', $t->type) }}</td>
-                                <td class="px-4 py-2 border border-gray-600 text-gray-300">{{ $t->description }}</td>
-                                <td class="px-4 py-2 text-right border border-gray-600
+                                <td class="px-2 sm:px-4 py-2 border border-gray-600 text-gray-300 text-xs sm:text-sm">{{ $t->created_at->format('Y-m-d H:i') }}</td>
+                                <td class="px-2 sm:px-4 py-2 border border-gray-600 text-gray-300 capitalize text-xs sm:text-sm">{{ str_replace('_', ' ', $t->type) }}</td>
+                                <td class="px-2 sm:px-4 py-2 border border-gray-600 text-gray-300 text-xs sm:text-sm">{{ $t->description }}</td>
+                                <td class="px-2 sm:px-4 py-2 text-right border border-gray-600 text-xs sm:text-sm
                                     @if($t->type == 'transfer_in' || $t->type == 'deposit') text-green-400
-                                    @else text-red-400 @endif">
-                                    @if($t->type == 'transfer_in' || $t->type == 'deposit')
-                                        +${{ number_format($t->amount, 2) }}
-                                    @else
-                                        -${{ number_format($t->amount, 2) }}
-                                    @endif
+                                    @elseif($t->type == 'transfer_out' || $t->type == 'withdrawal') text-red-400
+                                    @endif text-white font-semibold">
+                                    @if($t->type == 'transfer_in' || $t->type == 'deposit') +
+                                    @endif ${{ number_format($t->amount, 2) }}
                                 </td>
-                                <td class="px-4 py-2 text-right border border-gray-600">
-                                    <span class="px-2 py-1 rounded text-sm
-                                        @if($t->status == 'completed') bg-green-900 text-green-200
-                                        @elseif($t->status == 'pending') bg-yellow-900 text-yellow-200
-                                        @else bg-red-900 text-red-200 @endif">
-                                        {{ ucfirst($t->status) }}
-                                    </span>
+                                <td class="px-2 sm:px-4 py-2 text-right border border-gray-600 text-xs sm:text-sm">
+                                    @if($t->status == 'completed')
+                                        <span class="px-2 py-1 bg-green-900 text-green-300 rounded-full text-xs">Completed</span>
+                                    @elseif($t->status == 'pending')
+                                        <span class="px-2 py-1 bg-yellow-900 text-yellow-300 rounded-full text-xs">Pending</span>
+                                    @elseif($t->status == 'failed')
+                                        <span class="px-2 py-1 bg-red-900 text-red-300 rounded-full text-xs">Failed</span>
+                                    @else
+                                        <span class="px-2 py-1 bg-gray-700 text-gray-300 rounded-full text-xs">{{ $t->status }}</span>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

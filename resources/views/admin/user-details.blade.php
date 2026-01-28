@@ -138,7 +138,7 @@
                     <h3 class="text-lg font-semibold mb-4 text-gray-200">Recent Transaction History</h3>
 
                     <div class="overflow-x-auto">
-                        <table class="min-w-full table-auto border-collapse">
+                        <table class="min-w-full table-auto border-collapse rounded-lg overflow-hidden">
                             <thead>
                                 <tr class="bg-gray-700">
                                     <th class="px-4 py-3 text-left border border-gray-600 text-gray-200">Date</th>
